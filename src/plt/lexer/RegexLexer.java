@@ -86,7 +86,10 @@ public class RegexLexer<T, R extends BasicToken<T>>
                 int start = matcher.start();
                 int end = matcher.end();
                 Positioning location = getLocation(text, start, end, positioning);
-                tokens.add(this.factory.create(t, type, location.region));
+                R e = this.factory.create(t, type, location.region);
+                if(this.fail.test(e.type()))
+                    throw new RuntimeException("Failed on input " + e.text());
+                tokens.add(e);
                 positioning = location;
             }
         }
