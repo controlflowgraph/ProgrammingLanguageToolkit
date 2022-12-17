@@ -27,4 +27,14 @@ public abstract class BasicToken<T>
     {
         return this.region;
     }
+
+    public boolean isType(T type)
+    {
+        return this.type.equals(type);
+    }
+
+    public boolean isText(String text)
+    {
+        return this.text.equals(text);
+    }
 }
