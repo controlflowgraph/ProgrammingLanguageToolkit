@@ -62,7 +62,7 @@ public class RegexLexerFactoryBuilder<T, R extends BasicToken<T>>
         return this;
     }
 
-    public RegexLexerFactory<T, R> build()
+    public LexerFactory<T, R> build()
     {
         if(this.factory == null)
             throw new RuntimeException("Token factory is required!");

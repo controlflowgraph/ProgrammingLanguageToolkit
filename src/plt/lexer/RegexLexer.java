@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 
-public class RegexLexer<T, R extends BasicToken<T>>
+public class RegexLexer<T, R extends BasicToken<T>> implements Lexer<T, R>
 {
     private final TokenFactory<T, R> factory;
     private final List<Category<T>> categories;
@@ -27,6 +27,7 @@ public class RegexLexer<T, R extends BasicToken<T>>
     {
     }
 
+    @Override
     public List<R> lex(String text)
     {
         return filter(transform(process(text)));
