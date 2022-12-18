@@ -11,6 +11,13 @@ public class RegexLexerFactoryBuilder<T, R extends BasicToken<T>>
     {
         return new RegexLexerFactoryBuilder<>();
     }
+
+    public static <T, R extends BasicToken<T>> RegexLexerFactoryBuilder<T, R> create(TokenFactory<T, R> factory)
+    {
+        return new RegexLexerFactoryBuilder<T, R>()
+                .factory(factory);
+    }
+
     private TokenFactory<T, R> factory;
     private final List<Category<T>> categories = new ArrayList<>();
     private final Map<T, List<Transformer<T, R>>> transformer = new HashMap<>();
