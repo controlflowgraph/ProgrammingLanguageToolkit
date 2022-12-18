@@ -72,33 +72,12 @@ public class SimpleParserFactoryBuilder<T, R extends BasicToken<T>, O>
 
     public ParserUnitFactory<T, R, O> build()
     {
-        return new ParserUnitFactory<T, R, O>(this.name)
+        return new ParserUnitFactory<>(this.name)
         {
             @Override
             public ParserUnit<T, R, O> create()
             {
-
-                return p -> {
-                    List<Object> arguments = list.stream()
-                            .map(f -> f.apply(p))
-                            .filter(Optional::isPresent)
-                            .map(Optional::get)
-                            .map(Object.class::cast)
-                            .toList();
-                    Class<?>[] cls = arguments.stream()
-                            .map(Object::getClass)
-                            .toArray(Class[]::new);
-                    try
-                    {
-                        Constructor<?> constructor = output.getDeclaredConstructors()[0];
-                        return (O) constructor.newInstance(arguments.toArray());
-                    }
-                    catch (Exception e)
-                    {
-                        e.printStackTrace();
-                        throw new RuntimeException("Unable to find constructor matching " + Arrays.toString(cls) + "!");
-                    }
-                };
+                return new SimpleParser<>(name, output, list);
             }
         };
     }
