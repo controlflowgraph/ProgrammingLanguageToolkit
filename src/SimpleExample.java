@@ -88,25 +88,10 @@ public class SimpleExample
         return factory.create().lex(text);
     }
 
-    public interface Element
-    {
-
-    }
-
-    public record Parameter(String name)
-    {
-
-    }
-
-    public record Func(String name, List<Parameter> parameters, Element body) implements Element
-    {
-
-    }
-
-    public record Block(List<Element> elements) implements Element
-    {
-
-    }
+    public interface Element { }
+    public record Parameter(String name) { }
+    public record Func(String name, List<Parameter> parameters, Element body) implements Element { }
+    public record Block(List<Element> elements) implements Element { }
 
     private static List<Element> parse(List<Token> tokens)
     {
