@@ -22,8 +22,13 @@ public abstract class ParserUnitFactory<T, R extends BasicToken<T>, O>
 
     public <A> ParserUnitFactory<T, R, A> transform(Function<O, A> value)
     {
+        return transform(this.name, value);
+    }
+
+    public <A> ParserUnitFactory<T, R, A> transform(String name, Function<O, A> value)
+    {
         ParserUnitFactory<T, R, O> c = this;
-        return new ParserUnitFactory<>(this.name)
+        return new ParserUnitFactory<>(name)
         {
             @Override
             public ParserUnit<T, R, A> create()

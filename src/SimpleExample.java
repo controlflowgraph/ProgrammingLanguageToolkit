@@ -2,13 +2,19 @@ import plt.lexer.BasicToken;
 import plt.lexer.LexerFactory;
 import plt.lexer.RegexLexerFactoryBuilder;
 import plt.lexer.Region;
+import plt.parser.ParserBuilder;
+import plt.parser.ParserUnit;
+import plt.parser.ParserUnitFactory;
 import plt.parser.conditional.ConditionalParserFactoryBuilder;
 import plt.parser.matching.MatchingParserFactoryBuilder;
-import plt.parser.ParserBuilder;
 import plt.parser.simple.SimpleParserFactoryBuilder;
+import plt.parser.yard.ShuntingYardParserFactoryBuilder;
+import plt.parser.yard.ShuntingYard;
+import plt.parser.yard.ShuntingYardFactoryBuilder;
 import plt.provider.TokenProvider;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
@@ -25,6 +31,7 @@ public class SimpleExample
         NUMBER,
         BOOLEAN,
         SYNTAX,
+        OPERATOR,
         UNKNOWN,
     }
 
@@ -52,12 +59,10 @@ public class SimpleExample
         String code = """
                 fn some(p1, p2)
                 {
-                    fn name() { }
+                    10 + 20 * 30;
                 }
                 """;
         List<Token> tokens = lex(code);
-        tokens.forEach(System.out::println);
-
         List<Element> parse = parse(tokens);
         parse.forEach(System.out::println);
     }
@@ -69,7 +74,8 @@ public class SimpleExample
                 .category(TokenType.COMMENT, Pattern.compile("//[^\n]*"))
                 .category(TokenType.IDENTIFIER, Pattern.compile("[_a-zA-Z]\\w*"))
                 .category(TokenType.NUMBER, Pattern.compile("\\d+(\\.\\d+)?"))
-                .category(TokenType.SYNTAX, Pattern.compile("[{(,)}]"))
+                .category(TokenType.SYNTAX, Pattern.compile("[{(,;)}]"))
+                .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%]"))
                 .category(TokenType.UNKNOWN, Pattern.compile("[^ \t\r\n]"))
                 .transformer(
                         TokenType.IDENTIFIER,
@@ -88,10 +94,96 @@ public class SimpleExample
         return factory.create().lex(text);
     }
 
-    public interface Element { }
-    public record Parameter(String name) { }
-    public record Func(String name, List<Parameter> parameters, Element body) implements Element { }
-    public record Block(List<Element> elements) implements Element { }
+    public interface Element
+    {
+    }
+
+    public record Parameter(String name)
+    {
+    }
+
+    public record Func(String name, List<Parameter> parameters, Element body) implements Element
+    {
+    }
+
+    public record Block(List<Element> elements) implements Element
+    {
+    }
+
+    public record Expression(Segment segment) implements Element
+    {
+
+    }
+
+    public interface Segment
+    {
+
+    }
+
+    public record Num(String value) implements Segment
+    {
+
+    }
+
+    public record Bool(String value) implements Segment
+    {
+
+    }
+
+    public record Id(String value) implements Segment
+    {
+
+    }
+
+    public record Un(String op, Segment source) implements Segment
+    {
+    }
+
+    public record Bin(String op, Segment left, Segment right) implements Segment
+    {
+    }
+
+    public record Tuple(List<Segment> segments) implements Segment
+    {
+    }
+
+    public record Invocation(Segment source, List<Segment> arguments) implements Segment
+    {
+    }
+
+    private record Level(boolean binary, Set<String> operators)
+    {
+
+    }
+
+    private static final List<Level> PRECEDENCES = List.of(
+            new Level(true, Set.of(".", "[]")),
+            new Level(false, Set.of("+", "-", "!")),
+            new Level(true, Set.of("<<", ">>", "<<<", ">>>")),
+            new Level(true, Set.of("&")),
+            new Level(true, Set.of("^")),
+            new Level(true, Set.of("|")),
+            new Level(true, Set.of("*", "/", "%")),
+            new Level(true, Set.of("+", "-")),
+            new Level(true, Set.of("<", ">", "<=", ">=")),
+            new Level(true, Set.of("==", "!=")),
+            new Level(true, Set.of("&&")),
+            new Level(true, Set.of("^^")),
+            new Level(true, Set.of("||")),
+            new Level(true, Set.of("=", "+=", "-="))
+    );
+
+    private static ShuntingYard.Operator get(String op, boolean bin)
+    {
+        for (int i = 0; i < PRECEDENCES.size(); i++)
+        {
+            if (PRECEDENCES.get(i).binary == bin && PRECEDENCES.get(i).operators.contains(op))
+            {
+                return new ShuntingYard.Operator(i, bin, op);
+            }
+        }
+        throw new RuntimeException((bin ? "Binary" : "Unary") + " operator '" + op + "' not recognized!");
+    }
 
     private static List<Element> parse(List<Token> tokens)
     {
@@ -101,6 +193,7 @@ public class SimpleExample
                 .create("element", Token.class, Element.class)
                 .when("fn", builder.parser("func"))
                 .when("{", builder.parser("block"))
+                .when(t -> true, builder.parser("expr"))
                 .build()
         );
 
@@ -132,6 +225,52 @@ public class SimpleExample
                 .build()
                 .transform(Block::new)
         );
+
+        ParserBuilder<Segment, TokenType, Token> sb = ParserBuilder.create(Token.class, Segment.class);
+
+        ParserUnitFactory<TokenType, Token, List<Segment>> paren = MatchingParserFactoryBuilder
+                .create("paren", Token.class, Segment.class)
+                .opening("(")
+                .creator(sb.parser("segment"))
+                .separator(",")
+                .closing(")")
+                .build();
+
+        sb.add(paren.transform("tuple", Tuple::new));
+
+
+        sb.add(ShuntingYardParserFactoryBuilder
+                .create("segment", Token.class, Segment.class)
+                .factory(ShuntingYardFactoryBuilder.create(Segment.class)
+                        .calculator(SimpleExample::get)
+                        .merger(Bin::new)
+                        .wrapper(Un::new)
+                        .build()
+                )
+                .when(t -> t.isType(TokenType.NUMBER), p -> new Num(p.next().text()))
+                .when(t -> t.isType(TokenType.BOOLEAN), p -> new Bool(p.next().text()))
+                .when(t -> t.isType(TokenType.IDENTIFIER), p -> new Id(p.next().text()))
+                .when(t -> t.isText("("), p -> sb.parser("tuple").create(p))
+                .when(t -> t.isText("("), (c, p) -> new Invocation(c, paren.create().parse(p)))
+                .when(t -> t.isText("["), (c, p) -> {
+                    throw new RuntimeException("Not implemented!");
+                })
+                .when(t -> t.isText("."), (c, p) -> {
+                    throw new RuntimeException("Not implemented!");
+                })
+                .stop(t -> t.isText(";"))
+                .operator(t -> t.isType(TokenType.OPERATOR))
+                .build()
+        );
+
+        builder.add(new ParserUnitFactory<TokenType, Token, Element>("expr")
+        {
+            @Override
+            public ParserUnit<TokenType, Token, Element> create()
+            {
+                return p -> new Expression(sb.parser("segment").create(p));
+            }
+        });
 
         return builder.create("element").create().parseAll(new TokenProvider<>(tokens));
     }

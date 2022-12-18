@@ -9,6 +9,5 @@ In the `src/SimpleExample.java` file is a simple example on how to lex and parse
 
 ## Future goals
 - add support more complex grammars
-- add parsing of expressions (e.g. using a shunting yard algorithm)
 - add more examples for simple languages (e.g. with significant white space)
 - add better support for regions by being able to look at the last token as well
