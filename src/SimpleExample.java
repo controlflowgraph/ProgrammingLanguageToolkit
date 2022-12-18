@@ -2,10 +2,10 @@ import plt.lexer.BasicToken;
 import plt.lexer.LexerFactory;
 import plt.lexer.RegexLexerFactoryBuilder;
 import plt.lexer.Region;
-import plt.parser.ConditionalParserFactoryBuilder;
-import plt.parser.MatchingParserFactoryBuilder;
+import plt.parser.conditional.ConditionalParserFactoryBuilder;
+import plt.parser.matching.MatchingParserFactoryBuilder;
 import plt.parser.ParserBuilder;
-import plt.parser.SimpleParserFactoryBuilder;
+import plt.parser.simple.SimpleParserFactoryBuilder;
 import plt.provider.TokenProvider;
 
 import java.util.List;
