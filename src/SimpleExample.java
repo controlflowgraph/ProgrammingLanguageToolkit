@@ -295,7 +295,7 @@ public class SimpleExample
                 .closing(")")
                 .build();
 
-        sb.add(paren.transform("tuple", Tuple::new));
+        sb.add(paren.transform("tuple", l -> l.size() == 1 ? l.get(0) : new Tuple(l)));
 
         ParserUnitFactory<TokenType, Token, List<Segment>> brack = MatchingParserFactoryBuilder
                 .create("brack", Token.class, Segment.class)
