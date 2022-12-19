@@ -258,7 +258,7 @@ public class SimpleExample
                 .build()
         );
 
-        builder.add(MatchingParserFactoryBuilder
+        ParserUnitFactory<TokenType, Token, List<Parameter>> args = MatchingParserFactoryBuilder
                 .create("args", Token.class, Parameter.class)
                 .opening("(")
                 .creator(c -> new Parameter(
@@ -266,14 +266,13 @@ public class SimpleExample
                 ))
                 .separator(",")
                 .closing(")")
-                .build()
-        );
+                .build();
 
         builder.add(SimpleParserFactoryBuilder
                 .create("func", Token.class, Func.class)
                 .check("fn")
                 .check(TokenType.IDENTIFIER, BasicToken::text)
-                .parse(builder.parser("args"))
+                .parse(p -> args.create().parse(p))
                 .parse(builder.parser("element"))
                 .build()
         );

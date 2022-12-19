@@ -17,7 +17,7 @@ public class ParserBuilder<O, T, S extends BasicToken<T>>
 
     private final Class<S> input;
     private final Class<O> output;
-    private final Map<String, ParserUnitFactory<T, S, ?>> mapping = new HashMap<>();
+    private final Map<String, ParserUnitFactory<T, S, ? extends O>> mapping = new HashMap<>();
 
     protected ParserBuilder(Class<S> input, Class<O> output)
     {
@@ -25,7 +25,7 @@ public class ParserBuilder<O, T, S extends BasicToken<T>>
         this.output = output;
     }
 
-    public ParserBuilder<O, T, S> add(ParserUnitFactory<T, S, ?> factory)
+    public ParserBuilder<O, T, S> add(ParserUnitFactory<T, S, ? extends O> factory)
     {
         if(this.mapping.containsKey(factory.getName()))
             throw new RuntimeException("Factory with name " + factory.getName() + " already registered!");
