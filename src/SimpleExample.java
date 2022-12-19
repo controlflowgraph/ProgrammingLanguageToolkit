@@ -59,7 +59,10 @@ public class SimpleExample
         String code = """
                 fn some(p1, p2)
                 {
+                    (10, 20, 30 + (123, 456, 789));
                     10 + 20 * 30;
+                    [1, 2, 3][0];
+                    a[123];
                 }
                 """;
         List<Token> tokens = lex(code);
@@ -74,7 +77,7 @@ public class SimpleExample
                 .category(TokenType.COMMENT, Pattern.compile("//[^\n]*"))
                 .category(TokenType.IDENTIFIER, Pattern.compile("[_a-zA-Z]\\w*"))
                 .category(TokenType.NUMBER, Pattern.compile("\\d+(\\.\\d+)?"))
-                .category(TokenType.SYNTAX, Pattern.compile("[{(,;)}]"))
+                .category(TokenType.SYNTAX, Pattern.compile("[{(\\[,;\\])}]"))
                 .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%]"))
                 .category(TokenType.UNKNOWN, Pattern.compile("[^ \t\r\n]"))
                 .transformer(
@@ -148,6 +151,14 @@ public class SimpleExample
     }
 
     public record Invocation(Segment source, List<Segment> arguments) implements Segment
+    {
+    }
+
+    public record Index(Segment source, Segment index) implements Segment
+    {
+    }
+
+    public record Lst(List<Segment> segments) implements Segment
     {
     }
 
@@ -238,6 +249,16 @@ public class SimpleExample
 
         sb.add(paren.transform("tuple", Tuple::new));
 
+        ParserUnitFactory<TokenType, Token, List<Segment>> brack = MatchingParserFactoryBuilder
+                .create("brack", Token.class, Segment.class)
+                .opening("[")
+                .creator(sb.parser("segment"))
+                .separator(",")
+                .closing("]")
+                .build();
+
+        sb.add(brack.transform("list", Lst::new));
+
 
         sb.add(ShuntingYardParserFactoryBuilder
                 .create("segment", Token.class, Segment.class)
@@ -250,15 +271,18 @@ public class SimpleExample
                 .when(t -> t.isType(TokenType.NUMBER), p -> new Num(p.next().text()))
                 .when(t -> t.isType(TokenType.BOOLEAN), p -> new Bool(p.next().text()))
                 .when(t -> t.isType(TokenType.IDENTIFIER), p -> new Id(p.next().text()))
+                .when(t -> t.isText("["), p -> sb.parser("list").create(p))
                 .when(t -> t.isText("("), p -> sb.parser("tuple").create(p))
                 .when(t -> t.isText("("), (c, p) -> new Invocation(c, paren.create().parse(p)))
                 .when(t -> t.isText("["), (c, p) -> {
-                    throw new RuntimeException("Not implemented!");
+                    List<Segment> keys = brack.create().parse(p);
+                    if(keys.size() != 1)
+                        throw new RuntimeException("Expected exactly one key in index!");
+                    return new Index(c, keys.get(0));
                 })
                 .when(t -> t.isText("."), (c, p) -> {
                     throw new RuntimeException("Not implemented!");
                 })
-                .stop(t -> t.isText(";"))
                 .operator(t -> t.isType(TokenType.OPERATOR))
                 .build()
         );
@@ -268,7 +292,11 @@ public class SimpleExample
             @Override
             public ParserUnit<TokenType, Token, Element> create()
             {
-                return p -> new Expression(sb.parser("segment").create(p));
+                return p -> {
+                    Expression segment = new Expression(sb.parser("segment").create(p));
+                    p.assertNextIs(";");
+                    return segment;
+                };
             }
         });
 

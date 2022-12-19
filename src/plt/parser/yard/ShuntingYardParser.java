@@ -6,13 +6,13 @@ import plt.parser.ParserUnit;
 import plt.provider.TokenProvider;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 public class ShuntingYardParser<T, R extends BasicToken<T>, O> implements ParserUnit<T, R, O>
 {
     private final String name;
-    private final Predicate<R> stop;
     private final Predicate<R> operator;
     private final ShuntingYardFactory<O> factory;
     private final List<Predicate<R>> dependentPattern;
@@ -20,10 +20,9 @@ public class ShuntingYardParser<T, R extends BasicToken<T>, O> implements Parser
     private final List<Creator<T, R, O>> independent;
     private final List<BiFunction<O, TokenProvider<T, R>, O>> dependent;
 
-    public ShuntingYardParser(String name, Predicate<R> stop, Predicate<R> operator, ShuntingYardFactory<O> factory, List<Predicate<R>> independentPattern, List<Creator<T, R, O>> independent, List<Predicate<R>> dependentPattern, List<BiFunction<O, TokenProvider<T, R>, O>> dependent)
+    public ShuntingYardParser(String name, Predicate<R> operator, ShuntingYardFactory<O> factory, List<Predicate<R>> independentPattern, List<Creator<T, R, O>> independent, List<Predicate<R>> dependentPattern, List<BiFunction<O, TokenProvider<T, R>, O>> dependent)
     {
         this.name = name;
-        this.stop = stop;
         this.operator = operator;
         this.factory = factory;
         this.independentPattern = independentPattern;
@@ -36,7 +35,8 @@ public class ShuntingYardParser<T, R extends BasicToken<T>, O> implements Parser
     public O parse(TokenProvider<T, R> provider)
     {
         ShuntingYard<O> yard = this.factory.create();
-        while(provider.has() && !this.stop.test(provider.peek()))
+        boolean running = true;
+        while(provider.has() && running)
         {
             if(this.operator.test(provider.peek()))
             {
@@ -45,46 +45,50 @@ public class ShuntingYardParser<T, R extends BasicToken<T>, O> implements Parser
             else if(yard.hasValue())
             {
                 O o1 = yard.popValue();
-                O o = parseDependent(o1, provider);
-                yard.pushValue(o);
+                Optional<O> o = parseDependent(o1, provider);
+                if(o.isPresent())
+                    yard.pushValue(o.get());
+                else {
+                    running = false;
+                    yard.pushValue(o1);
+                }
             }
             else
             {
-                O o = parseIndependent(provider);
-                yard.pushValue(o);
+                Optional<O> o = parseIndependent(provider);
+                if(o.isPresent())
+                    yard.pushValue(o.get());
+                else running = false;
             }
         }
-        if(!provider.has())
-            throw new RuntimeException("Expected token but EOF found!");
-        if(!this.stop.test(provider.next()))
-            throw new RuntimeException("Unexpected token found!");
-
         return yard.finish();
     }
 
-    private O parseDependent(O value, TokenProvider<T, R> provider)
+    private Optional<O> parseDependent(O value, TokenProvider<T, R> provider)
     {
         R c = provider.peek();
         for (int i = 0; i < dependent.size(); i++)
         {
             if(this.dependentPattern.get(i).test(c))
             {
-                return this.dependent.get(i).apply(value, provider);
+                O apply = this.dependent.get(i).apply(value, provider);
+                return Optional.of(apply);
             }
         }
-        throw new RuntimeException("Non exhaustive pattern! " + c);
+        return Optional.empty();
     }
 
-    private O parseIndependent(TokenProvider<T, R> provider)
+    private Optional<O> parseIndependent(TokenProvider<T, R> provider)
     {
         R c = provider.peek();
         for (int i = 0; i < this.independent.size(); i++)
         {
             if(this.independentPattern.get(i).test(c))
             {
-                return this.independent.get(i).create(provider);
+                O o = this.independent.get(i).create(provider);
+                return Optional.of(o);
             }
         }
-        throw new RuntimeException("Non exhaustive pattern! " + c);
+        return Optional.empty();
     }
 }

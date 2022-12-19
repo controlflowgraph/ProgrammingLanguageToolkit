@@ -19,7 +19,6 @@ public class ShuntingYardParserFactoryBuilder<T, R extends BasicToken<T>, O>
     }
 
     private final String name;
-    private Predicate<R> stop;
     private Predicate<R> operator;
     private ShuntingYardFactory<O> factory;
     private final List<Predicate<R>> independentPatterns = new ArrayList<>();
@@ -30,12 +29,6 @@ public class ShuntingYardParserFactoryBuilder<T, R extends BasicToken<T>, O>
     public ShuntingYardParserFactoryBuilder(String name)
     {
         this.name = name;
-    }
-
-    public ShuntingYardParserFactoryBuilder<T, R, O> stop(Predicate<R> stop)
-    {
-        this.stop = stop;
-        return this;
     }
 
     public ShuntingYardParserFactoryBuilder<T, R, O> when(Predicate<R> check, Creator<T, R, O> creator)
@@ -59,7 +52,7 @@ public class ShuntingYardParserFactoryBuilder<T, R extends BasicToken<T>, O>
             @Override
             public ParserUnit<T, R, O> create()
             {
-                return new ShuntingYardParser<>(name, stop, operator, factory, independentPatterns, independent, dependentPatterns, dependent);
+                return new ShuntingYardParser<>(name, operator, factory, independentPatterns, independent, dependentPatterns, dependent);
             }
         };
     }
