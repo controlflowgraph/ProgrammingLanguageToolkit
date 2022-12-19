@@ -66,6 +66,8 @@ public class SimpleExample
                 }
                                 
                 print(fac(10));
+                print([1, 2, 3][0]);
+                print((1, 2, 3)[0]);
                 """;
         List<Token> tokens = lex(code);
         List<Element> parse = parse(tokens);
@@ -692,7 +694,13 @@ public class SimpleExample
                 case "mul" -> values.put(in.dest, (double) values.get(in.arguments.get(0)) * (double) values.get(in.arguments.get(1)));
                 case "label" -> {}
                 case "jump" -> index = mapping.get(in.data);
-                default -> throw new RuntimeException("Unknown " + in.name + "!");
+                case "tuple", "list" -> values.put(in.dest, in.arguments.stream().map(values::get).toList());
+                case "get-index" -> {
+                    List<?> lst = (List<?>) values.get(in.arguments.get(0));
+                    int i = (int)(double) values.get(in.arguments.get(1));
+                    values.put(in.dest, lst.get(i));
+                }
+                default -> throw new RuntimeException("Unknown " + in + "!");
             }
             index++;
         }
