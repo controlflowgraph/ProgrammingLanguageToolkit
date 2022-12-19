@@ -168,7 +168,7 @@ public class SimpleExample
     {
     }
 
-    public record Return(Segment segment) implements Segment
+    public record Return(Segment segment) implements Element
     {
     }
 
