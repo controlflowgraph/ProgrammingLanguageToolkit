@@ -59,6 +59,7 @@ public class SimpleExample
         String code = """
                 fn some(p1, p2)
                 {
+                    var x = 10;
                     if(true)
                     {
                         a.print(10);
@@ -88,7 +89,7 @@ public class SimpleExample
                 .category(TokenType.IDENTIFIER, Pattern.compile("[_a-zA-Z]\\w*"))
                 .category(TokenType.NUMBER, Pattern.compile("\\d+(\\.\\d+)?"))
                 .category(TokenType.SYNTAX, Pattern.compile("[{(\\[.,;\\])}]"))
-                .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%]"))
+                .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%=<>!&|^]"))
                 .category(TokenType.UNKNOWN, Pattern.compile("[^ \t\r\n]"))
                 .transformer(
                         TokenType.IDENTIFIER,
@@ -97,7 +98,7 @@ public class SimpleExample
                 )
                 .transformer(
                         TokenType.IDENTIFIER,
-                        ifTextIsOneOf("fn", "if", "ret"),
+                        ifTextIsOneOf("fn", "if", "else", "ret", "var"),
                         Token.replaceTypeBy(TokenType.KEYWORD)
                 )
                 .filter(ifTypeIs(TokenType.COMMENT))
@@ -180,6 +181,10 @@ public class SimpleExample
     {
     }
 
+    public record Declaration(String name, Segment value) implements Element
+    {
+    }
+
     public record If(Segment condition, Element body, Element successor) implements Element
     {
 
@@ -204,7 +209,7 @@ public class SimpleExample
             new Level(true, Set.of("&&")),
             new Level(true, Set.of("^^")),
             new Level(true, Set.of("||")),
-            new Level(true, Set.of("=", "+=", "-="))
+            new Level(true, Set.of("=", "+=", "-=", "*=", "/=", "%="))
     );
 
     private static ShuntingYard.Operator get(String op, boolean bin)
@@ -229,8 +234,18 @@ public class SimpleExample
                 .when("fn", builder.parser("func"))
                 .when("if", builder.parser("if"))
                 .when("ret", builder.parser("ret"))
+                .when("var", builder.parser("var"))
                 .when("{", builder.parser("block"))
                 .when(t -> !t.isType(TokenType.KEYWORD), builder.parser("expr"))
+                .build()
+        );
+
+        builder.add(SimpleParserFactoryBuilder.create("var", Token.class, Declaration.class)
+                .check("var")
+                .check(TokenType.IDENTIFIER, Token::text)
+                .check("=")
+                .parse(p -> sb.parser("segment").create(p))
+                .check(";")
                 .build()
         );
 
