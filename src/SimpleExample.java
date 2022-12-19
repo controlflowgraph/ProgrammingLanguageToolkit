@@ -330,15 +330,8 @@ public class SimpleExample
                 .when(t -> t.isText("."), (c, p) -> {
                     p.assertNextIs(".");
                     String text = p.assertNextIs(TokenType.IDENTIFIER).text();
-                    if (p.nextIs("("))
-                    {
-                        List<Segment> arguments = paren.create().parse(p);
-                        return new Invocation(c, text, arguments);
-                    }
-                    else
-                    {
-                        return new Selection(c, text);
-                    }
+                    if (p.nextIs("(")) return new Invocation(c, text, paren.create().parse(p));
+                    else return new Selection(c, text);
                 })
                 .operator(t -> t.isType(TokenType.OPERATOR))
                 .build()
