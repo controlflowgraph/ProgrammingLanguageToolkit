@@ -63,6 +63,7 @@ public class SimpleExample
                     10 + 20 * 30;
                     [1, 2, 3][0];
                     a[123];
+                    a.b(b.c);
                 }
                 """;
         List<Token> tokens = lex(code);
@@ -77,7 +78,7 @@ public class SimpleExample
                 .category(TokenType.COMMENT, Pattern.compile("//[^\n]*"))
                 .category(TokenType.IDENTIFIER, Pattern.compile("[_a-zA-Z]\\w*"))
                 .category(TokenType.NUMBER, Pattern.compile("\\d+(\\.\\d+)?"))
-                .category(TokenType.SYNTAX, Pattern.compile("[{(\\[,;\\])}]"))
+                .category(TokenType.SYNTAX, Pattern.compile("[{(\\[.,;\\])}]"))
                 .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%]"))
                 .category(TokenType.UNKNOWN, Pattern.compile("[^ \t\r\n]"))
                 .transformer(
@@ -150,7 +151,11 @@ public class SimpleExample
     {
     }
 
-    public record Invocation(Segment source, List<Segment> arguments) implements Segment
+    public record Invocation(Segment source, String name, List<Segment> arguments) implements Segment
+    {
+    }
+
+    public record Selection(Segment source, String name) implements Segment
     {
     }
 
@@ -273,7 +278,6 @@ public class SimpleExample
                 .when(t -> t.isType(TokenType.IDENTIFIER), p -> new Id(p.next().text()))
                 .when(t -> t.isText("["), p -> sb.parser("list").create(p))
                 .when(t -> t.isText("("), p -> sb.parser("tuple").create(p))
-                .when(t -> t.isText("("), (c, p) -> new Invocation(c, paren.create().parse(p)))
                 .when(t -> t.isText("["), (c, p) -> {
                     List<Segment> keys = brack.create().parse(p);
                     if(keys.size() != 1)
@@ -281,7 +285,17 @@ public class SimpleExample
                     return new Index(c, keys.get(0));
                 })
                 .when(t -> t.isText("."), (c, p) -> {
-                    throw new RuntimeException("Not implemented!");
+                    p.assertNextIs(".");
+                    String text = p.assertNextIs(TokenType.IDENTIFIER).text();
+                    if(p.nextIs("("))
+                    {
+                        List<Segment> arguments = paren.create().parse(p);
+                        return new Invocation(c, text, arguments);
+                    }
+                    else
+                    {
+                        return new Selection(c, text);
+                    }
                 })
                 .operator(t -> t.isType(TokenType.OPERATOR))
                 .build()
