@@ -59,6 +59,14 @@ public class SimpleExample
         String code = """
                 fn some(p1, p2)
                 {
+                    if(true)
+                    {
+                        a.print(10);
+                    }
+                    else
+                    {
+                        b.print(20);
+                    }
                     (10, 20, 30 + (123, 456, 789));
                     10 + 20 * 30;
                     [1, 2, 3][0];
@@ -172,6 +180,11 @@ public class SimpleExample
     {
     }
 
+    public record If(Segment condition, Element body, Element successor) implements Element
+    {
+
+    }
+
     private record Level(boolean binary, Set<String> operators)
     {
 
@@ -214,6 +227,7 @@ public class SimpleExample
         builder.add(ConditionalParserFactoryBuilder
                 .create("element", Token.class, Element.class)
                 .when("fn", builder.parser("func"))
+                .when("if", builder.parser("if"))
                 .when("ret", builder.parser("ret"))
                 .when("{", builder.parser("block"))
                 .when(t -> !t.isType(TokenType.KEYWORD), builder.parser("expr"))
@@ -224,6 +238,23 @@ public class SimpleExample
                 .check("ret")
                 .parse(p -> sb.parser("segment").create(p))
                 .check(";")
+                .build()
+        );
+
+        builder.add(ConditionalParserFactoryBuilder.create("else", Token.class, Element.class)
+                .when("else", p -> {
+                    p.assertNextIs("else");
+                    return builder.parser("element").create(p);
+                })
+                .when(t -> true, p -> null)
+                .build()
+        );
+
+        builder.add(SimpleParserFactoryBuilder.create("if", Token.class, If.class)
+                .check("if")
+                .parse(sb.parser("segment"))
+                .parse(builder.parser("element"))
+                .parse(builder.parser("else"))
                 .build()
         );
 
