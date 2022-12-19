@@ -8,13 +8,12 @@ import plt.parser.ParserUnitFactory;
 import plt.parser.conditional.ConditionalParserFactoryBuilder;
 import plt.parser.matching.MatchingParserFactoryBuilder;
 import plt.parser.simple.SimpleParserFactoryBuilder;
-import plt.parser.yard.ShuntingYardParserFactoryBuilder;
 import plt.parser.yard.ShuntingYard;
 import plt.parser.yard.ShuntingYardFactoryBuilder;
+import plt.parser.yard.ShuntingYardParserFactoryBuilder;
 import plt.provider.TokenProvider;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
@@ -57,28 +56,21 @@ public class SimpleExample
     public static void main(String[] args)
     {
         String code = """
-                fn some(p1, p2)
+                fn fac(v)
                 {
-                    var x = 10;
-                    if(true)
+                    if(v == 0)
                     {
-                        a.print(10);
+                        ret 1;
                     }
-                    else
-                    {
-                        b.print(20);
-                    }
-                    (10, 20, 30 + (123, 456, 789));
-                    10 + 20 * 30;
-                    [1, 2, 3][0];
-                    a[123];
-                    a.b(b.c);
-                    ret 10 + 20;
+                    ret v * fac(v - 1);
                 }
+                                
+                print(fac(10));
                 """;
         List<Token> tokens = lex(code);
         List<Element> parse = parse(tokens);
-        parse.forEach(System.out::println);
+        Environment generate = generate(parse);
+        run(generate);
     }
 
     public static List<Token> lex(String text)
@@ -89,7 +81,7 @@ public class SimpleExample
                 .category(TokenType.IDENTIFIER, Pattern.compile("[_a-zA-Z]\\w*"))
                 .category(TokenType.NUMBER, Pattern.compile("\\d+(\\.\\d+)?"))
                 .category(TokenType.SYNTAX, Pattern.compile("[{(\\[.,;\\])}]"))
-                .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%=<>!&|^]"))
+                .category(TokenType.OPERATOR, Pattern.compile("[+\\-*/%=<>!&|^]+"))
                 .category(TokenType.UNKNOWN, Pattern.compile("[^ \t\r\n]"))
                 .transformer(
                         TokenType.IDENTIFIER,
@@ -110,6 +102,7 @@ public class SimpleExample
 
     public interface Element
     {
+        void generate(Environment env);
     }
 
     public record Parameter(String name)
@@ -118,76 +111,339 @@ public class SimpleExample
 
     public record Func(String name, List<Parameter> parameters, Element body) implements Element
     {
+        @Override
+        public void generate(Environment env)
+        {
+            env.push(this.name);
+            for (int i = 0; i < this.parameters.size(); i++)
+            {
+                env.add(new Instruction("arg", this.parameters.get(i).name, List.of(), "" + i));
+            }
+            this.body.generate(env);
+            env.pop();
+        }
     }
 
     public record Block(List<Element> elements) implements Element
     {
+        @Override
+        public void generate(Environment env)
+        {
+            for (Element element : elements)
+            {
+                element.generate(env);
+            }
+        }
     }
 
     public record Expression(Segment segment) implements Element
     {
-
+        @Override
+        public void generate(Environment env)
+        {
+            this.segment.generate(env);
+        }
     }
 
     public interface Segment
     {
+        String generate(Environment env);
 
+        default String assign(Environment env, Segment right)
+        {
+            throw new RuntimeException("Unable to assign to " + getClass().getSimpleName() + "!");
+        }
     }
 
     public record Num(String value) implements Segment
     {
 
+        @Override
+        public String generate(Environment env)
+        {
+            String next = env.current().counter.next();
+            env.add(new Instruction("num", next, List.of(), this.value));
+            return next;
+        }
     }
 
     public record Bool(String value) implements Segment
     {
 
+        @Override
+        public String generate(Environment env)
+        {
+            String next = env.current().counter.next();
+            env.add(new Instruction("bool", next, List.of(), this.value));
+            return next;
+        }
     }
 
     public record Id(String value) implements Segment
     {
+        @Override
+        public String assign(Environment env, Segment right)
+        {
+            String next = env.current().counter.next();
+            String generate = right.generate(env);
+            env.add(new Instruction("set-var", next, List.of(generate), this.value));
+            return next;
+        }
 
+        @Override
+        public String generate(Environment env)
+        {
+            String next = env.current().counter.next();
+            env.add(new Instruction("get-var", next, List.of(), this.value));
+            return next;
+        }
     }
 
     public record Un(String op, Segment source) implements Segment
     {
+        @Override
+        public String generate(Environment env)
+        {
+            String generate = this.source.generate(env);
+            String next = env.current().counter.next();
+            String operation = switch (this.op)
+                    {
+                        case "!" -> "not";
+                        case "-" -> "neg";
+                        default -> throw new RuntimeException("Unknown " + this.op + "!");
+                    };
+            env.add(new Instruction(operation, next, List.of(generate), null));
+            return next;
+        }
     }
 
     public record Bin(String op, Segment left, Segment right) implements Segment
     {
+        @Override
+        public String generate(Environment env)
+        {
+            if (this.op.equals("="))
+            {
+                return this.left.assign(env, this.right);
+            }
+            String l = this.left.generate(env);
+            String r = this.right.generate(env);
+            String next = env.current().counter.next();
+            String operation = switch (this.op)
+                    {
+                        case "+" -> "add";
+                        case "-" -> "sub";
+                        case "*" -> "mul";
+                        case "/" -> "div";
+                        case "==" -> "eq";
+                        default -> throw new RuntimeException("Unknown " + this.op + "!");
+                    };
+            env.add(new Instruction(operation, next, List.of(l, r), null));
+            return next;
+        }
     }
 
     public record Tuple(List<Segment> segments) implements Segment
     {
+        @Override
+        public String generate(Environment env)
+        {
+            List<String> results = this.segments.stream()
+                    .map(s -> s.generate(env))
+                    .toList();
+            String next = env.current().counter.next();
+            env.add(new Instruction("tuple", next, results, null));
+            return next;
+        }
     }
 
     public record Invocation(Segment source, String name, List<Segment> arguments) implements Segment
     {
+        @Override
+        public String generate(Environment env)
+        {
+            String next = env.current().counter.next();
+            List<String> args = new ArrayList<>();
+            String generate = this.source.generate(env);
+            args.add(generate);
+            this.arguments.stream()
+                    .map(a -> a.generate(env))
+                    .forEach(args::add);
+            env.add(new Instruction("invoke", next, args, this.name));
+            return next;
+        }
     }
 
     public record Selection(Segment source, String name) implements Segment
     {
+        @Override
+        public String assign(Environment env, Segment right)
+        {
+            String value = right.generate(env);
+            String next = env.current().counter.next();
+            String generate = this.source.generate(env);
+            env.add(new Instruction("set-attr", next, List.of(generate, value), this.name));
+            return next;
+        }
+
+        @Override
+        public String generate(Environment env)
+        {
+            String next = env.current().counter.next();
+            String generate = this.source.generate(env);
+            env.add(new Instruction("get-attr", next, List.of(generate), this.name));
+            return next;
+        }
     }
 
     public record Index(Segment source, Segment index) implements Segment
     {
+        @Override
+        public String assign(Environment env, Segment right)
+        {
+            String value = right.generate(env);
+            String dest = this.source.generate(env);
+            String key = this.index.generate(env);
+            String next = env.current().counter.next();
+            env.add(new Instruction("set-index", next, List.of(dest, key, value), null));
+            return next;
+        }
+
+        @Override
+        public String generate(Environment env)
+        {
+            String generate = this.source.generate(env);
+            String key = this.index.generate(env);
+            String next = env.current().counter.next();
+            env.add(new Instruction("get-index", next, List.of(generate, key), null));
+            return next;
+        }
     }
 
     public record Lst(List<Segment> segments) implements Segment
     {
+        @Override
+        public String generate(Environment env)
+        {
+            String next = env.current().counter.next();
+            List<String> args = this.segments.stream()
+                    .map(s -> s.generate(env))
+                    .toList();
+            env.add(new Instruction("list", next, args, null));
+            return next;
+        }
     }
 
     public record Return(Segment segment) implements Element
     {
+
+        @Override
+        public void generate(Environment env)
+        {
+            String result = this.segment.generate(env);
+            env.add(new Instruction("ret", "_", List.of(result), null));
+        }
     }
 
     public record Declaration(String name, Segment value) implements Element
     {
+        @Override
+        public void generate(Environment env)
+        {
+            env.add(new Instruction("def", this.name, List.of(), ""));
+            String result = this.value.generate(env);
+            env.add(new Instruction("get-var", this.name, List.of(result), ""));
+        }
     }
 
     public record If(Segment condition, Element body, Element successor) implements Element
     {
 
+        @Override
+        public void generate(Environment env)
+        {
+            String check = this.condition.generate(env);
+            String otherwise = env.current().labels.next();
+            String after = env.current().labels.next();
+            env.add(new Instruction("if", "_", List.of(check), otherwise));
+            this.body.generate(env);
+            env.add(new Instruction("jump", "_", List.of(), after));
+            env.add(new Instruction("label", "_", List.of(), otherwise));
+            if (this.successor != null)
+            {
+                this.successor.generate(env);
+            }
+            env.add(new Instruction("label", "_", List.of(), after));
+        }
+    }
+
+    public static class Counter
+    {
+        private final String prefix;
+        private int value;
+
+        public Counter(String prefix)
+        {
+            this.prefix = prefix;
+        }
+
+        public String next()
+        {
+            return this.prefix + this.value++;
+        }
+    }
+
+    public record Scope(List<Instruction> instructions, Counter counter, Counter labels)
+    {
+
+    }
+
+    public record Environment(Map<String, Scope> functions, Deque<Scope> stack)
+    {
+        public Scope get(String s)
+        {
+            return this.functions.get(s);
+        }
+
+        public Scope current()
+        {
+            return this.stack.peek();
+        }
+
+        public void add(Instruction instruction)
+        {
+            current().instructions.add(instruction);
+        }
+
+        public void push(String name)
+        {
+            Scope s = new Scope(new ArrayList<>(), new Counter("$"), new Counter(":"));
+            this.stack.push(s);
+            this.functions.put(name, current());
+        }
+
+        public void pop()
+        {
+            this.stack.pop();
+        }
+    }
+
+    public record Instruction(String name, String dest, List<String> arguments, String data)
+    {
+    }
+
+    public record Call(String name, List<Segment> arguments) implements Segment
+    {
+        @Override
+        public String generate(Environment env)
+        {
+            List<String> args = this.arguments.stream()
+                    .map(a -> a.generate(env))
+                    .toList();
+            String next = env.current().counter.next();
+            env.add(new Instruction("call", next, args, this.name));
+            return next;
+        }
     }
 
     private record Level(boolean binary, Set<String> operators)
@@ -261,7 +517,7 @@ public class SimpleExample
                     p.assertNextIs("else");
                     return builder.parser("element").create(p);
                 })
-                .when(t -> true, p -> null)
+                .when(t -> true, p -> new Block(List.of()))
                 .build()
         );
 
@@ -332,7 +588,11 @@ public class SimpleExample
                 )
                 .when(t -> t.isType(TokenType.NUMBER), p -> new Num(p.next().text()))
                 .when(t -> t.isType(TokenType.BOOLEAN), p -> new Bool(p.next().text()))
-                .when(t -> t.isType(TokenType.IDENTIFIER), p -> new Id(p.next().text()))
+                .when(t -> t.isType(TokenType.IDENTIFIER), p -> {
+                    String text = p.next().text();
+                    if(p.nextIs("(")) return new Call(text, paren.create().parse(p));
+                    else return new Id(text);
+                })
                 .when(t -> t.isText("["), p -> sb.parser("list").create(p))
                 .when(t -> t.isText("("), p -> sb.parser("tuple").create(p))
                 .when(t -> t.isText("["), (c, p) -> {
@@ -366,4 +626,77 @@ public class SimpleExample
 
         return builder.create("element").create().parseAll(new TokenProvider<>(tokens));
     }
+
+    private static Environment generate(List<Element> elements)
+    {
+        Environment environment = new Environment(new HashMap<>(), new ArrayDeque<>());
+        environment.push("-global-");
+        for (Element element : elements)
+        {
+            element.generate(environment);
+        }
+        environment.pop();
+        return environment;
+    }
+
+    private static void run(Environment env)
+    {
+        run(env, "-global-", List.of());
+    }
+
+    private static Object run(Environment env, String str, List<Object> args)
+    {
+        if(str.equals("print"))
+        {
+            System.out.println(String.join("    ", args.stream().map(Objects::toString).toList()));
+            return null;
+        }
+        Scope scope = env.get(str);
+        Map<String, Integer> mapping = new HashMap<>();
+        List<Instruction> instructions = scope.instructions;
+        for (int i = 0; i < instructions.size(); i++)
+        {
+            if(instructions.get(i).name.equals("label"))
+            {
+                mapping.put(instructions.get(i).data, i - 1);
+            }
+        }
+        Map<String, Object> values = new HashMap<>();
+        int index = 0;
+        while (0 <= index && index < instructions.size())
+        {
+            Instruction in = instructions.get(index);
+            switch (in.name)
+            {
+                case "get-var" -> values.put(in.dest, values.get(in.data));
+                case "def" -> values.put(in.dest, null);
+                case "if" -> {
+                    Object o = values.get(in.arguments.get(0));
+                    if(!Objects.equals(o, true))
+                    {
+                        index = mapping.get(in.data);
+                    }
+                }
+                case "arg" -> values.put(in.dest, args.get(Integer.parseInt(in.data)));
+                case "num" -> values.put(in.dest, Double.parseDouble(in.data));
+                case "bool" -> values.put(in.dest, in.data.equals("true"));
+                case "call" -> values.put(in.dest, run(env, in.data, in.arguments.stream().map(values::get).toList()));
+                case "ret" -> { return values.get(in.arguments.get(0)); }
+                case "eq" -> {
+                    Object v1 = values.get(in.arguments.get(0));
+                    Object v2 = values.get(in.arguments.get(1));
+                    boolean cond = Objects.equals(v1, v2);
+                    values.put(in.dest, cond);
+                }
+                case "sub" -> values.put(in.dest, (double) values.get(in.arguments.get(0)) - (double) values.get(in.arguments.get(1)));
+                case "mul" -> values.put(in.dest, (double) values.get(in.arguments.get(0)) * (double) values.get(in.arguments.get(1)));
+                case "label" -> {}
+                case "jump" -> index = mapping.get(in.data);
+                default -> throw new RuntimeException("Unknown " + in.name + "!");
+            }
+            index++;
+        }
+        return null;
+    }
+
 }
