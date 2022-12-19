@@ -336,7 +336,7 @@ public class SimpleExample
                 .build()
         );
 
-        builder.add(new ParserUnitFactory<TokenType, Token, Element>("expr")
+        builder.add(new ParserUnitFactory<>("expr")
         {
             @Override
             public ParserUnit<TokenType, Token, Element> create()
