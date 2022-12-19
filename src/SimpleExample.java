@@ -64,6 +64,7 @@ public class SimpleExample
                     [1, 2, 3][0];
                     a[123];
                     a.b(b.c);
+                    ret 10 + 20;
                 }
                 """;
         List<Token> tokens = lex(code);
@@ -88,7 +89,7 @@ public class SimpleExample
                 )
                 .transformer(
                         TokenType.IDENTIFIER,
-                        ifTextIsOneOf("fn", "if"),
+                        ifTextIsOneOf("fn", "if", "ret"),
                         Token.replaceTypeBy(TokenType.KEYWORD)
                 )
                 .filter(ifTypeIs(TokenType.COMMENT))
@@ -167,6 +168,10 @@ public class SimpleExample
     {
     }
 
+    public record Return(Segment segment) implements Segment
+    {
+    }
+
     private record Level(boolean binary, Set<String> operators)
     {
 
@@ -204,12 +209,21 @@ public class SimpleExample
     private static List<Element> parse(List<Token> tokens)
     {
         ParserBuilder<Element, TokenType, Token> builder = ParserBuilder.create(Token.class, Element.class);
+        ParserBuilder<Segment, TokenType, Token> sb = ParserBuilder.create(Token.class, Segment.class);
 
         builder.add(ConditionalParserFactoryBuilder
                 .create("element", Token.class, Element.class)
                 .when("fn", builder.parser("func"))
+                .when("ret", builder.parser("ret"))
                 .when("{", builder.parser("block"))
-                .when(t -> true, builder.parser("expr"))
+                .when(t -> !t.isType(TokenType.KEYWORD), builder.parser("expr"))
+                .build()
+        );
+
+        builder.add(SimpleParserFactoryBuilder.create("ret", Token.class, Return.class)
+                .check("ret")
+                .parse(p -> sb.parser("segment").create(p))
+                .check(";")
                 .build()
         );
 
@@ -241,8 +255,6 @@ public class SimpleExample
                 .build()
                 .transform(Block::new)
         );
-
-        ParserBuilder<Segment, TokenType, Token> sb = ParserBuilder.create(Token.class, Segment.class);
 
         ParserUnitFactory<TokenType, Token, List<Segment>> paren = MatchingParserFactoryBuilder
                 .create("paren", Token.class, Segment.class)
@@ -280,14 +292,14 @@ public class SimpleExample
                 .when(t -> t.isText("("), p -> sb.parser("tuple").create(p))
                 .when(t -> t.isText("["), (c, p) -> {
                     List<Segment> keys = brack.create().parse(p);
-                    if(keys.size() != 1)
+                    if (keys.size() != 1)
                         throw new RuntimeException("Expected exactly one key in index!");
                     return new Index(c, keys.get(0));
                 })
                 .when(t -> t.isText("."), (c, p) -> {
                     p.assertNextIs(".");
                     String text = p.assertNextIs(TokenType.IDENTIFIER).text();
-                    if(p.nextIs("("))
+                    if (p.nextIs("("))
                     {
                         List<Segment> arguments = paren.create().parse(p);
                         return new Invocation(c, text, arguments);
