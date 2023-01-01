@@ -4,10 +4,13 @@ import plt.vm.Extension;
 import plt.vm.context.FunctionContext;
 import plt.vm.model.Instruction;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 
-public class NumberCalc<T> extends Extension
+public class NumberCalc<T extends Number> extends Extension
 {
     private final Class<T> cls;
     private static final List<String> OPERATIONS = List.of(
@@ -18,7 +21,7 @@ public class NumberCalc<T> extends Extension
             "mod"
     );
 
-    protected NumberCalc(String name, Class<T> cls, List<BinaryOperator<T>> operators)
+    protected NumberCalc(String name, Class<T> cls, List<BinaryOperator<T>> operators, Comparator<T> comp)
     {
         super(name);
         this.cls = cls;
@@ -30,6 +33,17 @@ public class NumberCalc<T> extends Extension
         }
 
         function("val", (c, v) -> c.set(v.output(), v.data()));
+
+        function("equal", (c, v) -> check(c, v, comp, 0));
+        function("less", (c, v) -> check(c, v, comp, -1));
+        function("greater", (c, v) -> check(c, v, comp, 1));
+    }
+
+    private void check(FunctionContext context, Instruction instruction, Comparator<T> op, int expected)
+    {
+        T v1 = context.get(instruction.inputs()[0], this.cls);
+        T v2 = context.get(instruction.inputs()[1], this.cls);
+        context.set(instruction.output(), op.compare(v1, v2) == expected);
     }
 
     private void calc(FunctionContext context, Instruction instruction, BinaryOperator<T> op)

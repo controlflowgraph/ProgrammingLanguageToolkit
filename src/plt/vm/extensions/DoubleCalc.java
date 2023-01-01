@@ -15,7 +15,8 @@ public class DoubleCalc extends NumberCalc<Double>
                         (a, b) -> a * b,
                         (a, b) -> a / b,
                         (a, b) -> a % b
-                )
+                ),
+                Double::compare
         );
     }
 }

@@ -16,7 +16,8 @@ public class LongCalc extends NumberCalc<Long>
                         (a, b) -> a * b,
                         (a, b) -> a / b,
                         (a, b) -> a % b
-                )
+                ),
+                Long::compare
         );
     }
 }
