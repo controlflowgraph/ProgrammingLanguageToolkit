@@ -15,6 +15,7 @@ public class VirtualMachineExample
                 .add(new Fn())
                 .add(new Jump())
                 .add(new Debug())
+                .add(new Coroutine())
                 .build();
 
         Program program = new Program(List.of(
@@ -25,9 +26,17 @@ public class VirtualMachineExample
                                 new Instruction("double-val", 1, 2.0),
                                 new Instruction("fn-call", new int[]{0, 1}, 2, "f"),
                                 new Instruction("debug-print", new int[]{2}, -1, null),
+
                                 new Instruction("long-val", 3, 10L),
                                 new Instruction("fn-call", new int[]{3}, 4, "factorial"),
                                 new Instruction("debug-print", new int[]{4}, -1, null),
+
+                                new Instruction("co-create", 5, "nat"),
+                                new Instruction("co-invoke", new int[]{5}, 6, null),
+                                new Instruction("debug-print", new int[]{6}, -1, null),
+                                new Instruction("co-invoke", new int[]{5}, 6, null),
+                                new Instruction("debug-print", new int[]{6}, -1, null),
+
                                 new Instruction("fn-ret", -1, null)
                         )
                 ),
@@ -49,6 +58,18 @@ public class VirtualMachineExample
                                 new Instruction("long-mul", new int[]{0, 1}, 1, null),
                                 new Instruction("jump-label", -1, "other"),
                                 new Instruction("fn-ret-val", new int[]{1}, -1, null)
+                        )
+                ),
+                new Func(
+                        "nat",
+                        List.of(
+                                new Instruction("long-val", 0, 1L),
+                                new Instruction("jump-label", -1, "loop"),
+                                new Instruction("co-yield", new int[]{0}, -1, null),
+                                new Instruction("long-val", 1, 1L),
+                                new Instruction("long-add", new int[]{0, 1}, 0, null),
+                                new Instruction("jump-to", -1, "loop"),
+                                new Instruction("co-crash",-1, null)
                         )
                 )
         ), new Meta());
