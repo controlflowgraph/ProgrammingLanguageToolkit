@@ -1,6 +1,7 @@
-package plt.vm.model;
+package plt.vm.extensions;
 
 import plt.vm.Extension;
+import plt.vm.model.Instruction;
 
 import java.util.HashMap;
 import java.util.List;

@@ -1,9 +1,6 @@
 import plt.vm.VirtualMachine;
 import plt.vm.VirtualMachineBuilder;
-import plt.vm.extensions.Debug;
-import plt.vm.extensions.DoubleCalc;
-import plt.vm.extensions.Fn;
-import plt.vm.extensions.LongCalc;
+import plt.vm.extensions.*;
 import plt.vm.model.*;
 
 import java.util.List;
