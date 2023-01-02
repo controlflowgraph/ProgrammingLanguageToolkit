@@ -1,7 +1,10 @@
 package plt.vm.extensions;
 
 import plt.vm.Extension;
+import plt.vm.context.FunctionContext;
+import plt.vm.model.Func;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class Obj extends Extension
@@ -66,6 +69,18 @@ public class Obj extends Extension
             String field = v.data(String.class);
             Object value = c.get(v.inputs()[1]);
             inst.setField(field, value);
+        });
+
+        function("invoke", (c, v) -> {
+            Object[] args = new Object[v.inputs().length];
+            int[] inputs = v.inputs();
+            for (int i = 0; i < inputs.length; i++)
+                args[i] = c.get(inputs[i]);
+            Instance o = c.get(v.inputs()[0], Instance.class);
+            String name = o.descriptor().name() + "$" + v.data(String.class);
+            Func function = c.getContext().program().getFunction(name);
+            FunctionContext functionContext = new FunctionContext(c.getContext(), function, args);
+            c.getContext().stack().push(functionContext);
         });
     }
 }
