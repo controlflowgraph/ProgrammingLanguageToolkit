@@ -6,8 +6,6 @@ import plt.vm.model.Instruction;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 
 public class NumberCalc<T extends Number> extends Extension
