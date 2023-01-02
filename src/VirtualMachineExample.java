@@ -17,6 +17,7 @@ public class VirtualMachineExample
                 .add(new Debug())
                 .add(new Coroutine())
                 .add(new Obj())
+                .add(new Arr())
                 .build();
 
         Obj.Descriptor descriptor = new Obj.Descriptor(
@@ -51,6 +52,14 @@ public class VirtualMachineExample
                                 new Instruction("fn-call", new int[]{7, 8}, 7, "Test-init"),
                                 new Instruction("obj-get", new int[]{7}, 8, "t"),
                                 new Instruction("debug-print", new int[]{8}, -1, null),
+
+                                new Instruction("long-val", 9, 3),
+                                new Instruction("arr-create", new int[]{9}, 9, null),
+                                new Instruction("long-val", 10, 2),
+                                new Instruction("long-val", 11, 12345),
+                                new Instruction("arr-set", new int[]{9, 10, 11}, -1, null),
+                                new Instruction("arr-get", new int[]{9, 10}, 11, null),
+                                new Instruction("debug-print", new int[]{11}, -1, null),
 
                                 new Instruction("fn-ret", -1, null)
                         )
