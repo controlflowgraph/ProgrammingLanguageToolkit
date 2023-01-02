@@ -8,7 +8,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.BinaryOperator;
 
-public class NumberCalc<T extends Number> extends Extension
+public abstract class NumberCalc<T extends Number> extends Extension
 {
     private final Class<T> cls;
     private static final List<String> OPERATIONS = List.of(
