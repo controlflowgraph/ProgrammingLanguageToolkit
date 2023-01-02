@@ -1,4 +1,4 @@
-package plt.vm.extensions;
+package plt.vm.extensions.calc;
 
 import java.util.List;
 

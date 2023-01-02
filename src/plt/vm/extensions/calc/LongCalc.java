@@ -1,22 +1,23 @@
-package plt.vm.extensions;
+package plt.vm.extensions.calc;
 
 import java.util.List;
 
-public class DoubleCalc extends NumberCalc<Double>
+public class LongCalc extends NumberCalc<Long>
 {
-    public DoubleCalc()
+
+    public LongCalc()
     {
         super(
-                "double",
-                Double.class,
+                "long",
+                Long.class,
                 List.of(
-                        Double::sum,
+                        Long::sum,
                         (a, b) -> a - b,
                         (a, b) -> a * b,
                         (a, b) -> a / b,
                         (a, b) -> a % b
                 ),
-                Double::compare
+                Long::compare
         );
     }
 }

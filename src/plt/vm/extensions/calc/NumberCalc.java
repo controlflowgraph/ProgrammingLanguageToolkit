@@ -1,4 +1,4 @@
-package plt.vm.extensions;
+package plt.vm.extensions.calc;
 
 import plt.vm.Extension;
 import plt.vm.context.FunctionContext;
