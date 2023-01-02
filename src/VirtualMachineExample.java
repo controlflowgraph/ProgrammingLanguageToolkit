@@ -18,6 +18,7 @@ public class VirtualMachineExample
                 .add(new Coroutine())
                 .add(new Obj())
                 .add(new Arr())
+                .add(new LongCast())
                 .build();
 
         Obj.Descriptor descriptor = new Obj.Descriptor(
@@ -60,6 +61,10 @@ public class VirtualMachineExample
                                 new Instruction("arr-set", new int[]{9, 10, 11}, -1, null),
                                 new Instruction("arr-get", new int[]{9, 10}, 11, null),
                                 new Instruction("debug-print", new int[]{11}, -1, null),
+
+                                new Instruction("long-val", 12, 0xff00000000L),
+                                new Instruction("cast-long-to-int", new int[]{12}, 12, null),
+                                new Instruction("debug-print", new int[]{12}, -1, null),
 
                                 new Instruction("fn-ret", -1, null)
                         )
