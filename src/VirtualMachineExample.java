@@ -2,6 +2,7 @@ import plt.vm.VirtualMachine;
 import plt.vm.VirtualMachineBuilder;
 import plt.vm.extensions.*;
 import plt.vm.extensions.calc.DoubleCalc;
+import plt.vm.extensions.calc.IntCalc;
 import plt.vm.extensions.calc.LongCalc;
 import plt.vm.extensions.cast.LongCast;
 import plt.vm.model.*;
@@ -13,6 +14,7 @@ public class VirtualMachineExample
     public static void main(String[] args)
     {
         VirtualMachine vm = VirtualMachineBuilder.builder()
+                .add(new IntCalc())
                 .add(new LongCalc())
                 .add(new DoubleCalc())
                 .add(new Fn())
@@ -57,9 +59,9 @@ public class VirtualMachineExample
                                 new Instruction("obj-get", new int[]{7}, 8, "t"),
                                 new Instruction("debug-print", new int[]{8}, -1, null),
 
-                                new Instruction("long-val", 9, 3),
+                                new Instruction("int-val", 9, 3),
                                 new Instruction("arr-create", new int[]{9}, 9, null),
-                                new Instruction("long-val", 10, 2),
+                                new Instruction("int-val", 10, 2),
                                 new Instruction("long-val", 11, 12345),
                                 new Instruction("arr-set", new int[]{9, 10, 11}, -1, null),
                                 new Instruction("arr-get", new int[]{9, 10}, 11, null),
