@@ -87,6 +87,12 @@ public class SimpleExample
                 print([1, 2, 3][0]);
                 var a = true;
                 print(a);
+                                
+                for(var i = 0; i < 10; i = i + 1)
+                {
+                    print(i);
+                }
+                                
                 """;
         List<Token> tokens = lex(code);
         List<Element> parse = parse(tokens);
@@ -111,7 +117,7 @@ public class SimpleExample
                 )
                 .transformer(
                         TokenType.IDENTIFIER,
-                        ifTextIsOneOf("fn", "if", "else", "ret", "var"),
+                        ifTextIsOneOf("fn", "if", "else", "ret", "var", "for"),
                         Token.replaceTypeBy(TokenType.KEYWORD)
                 )
                 .filter(ifTypeIs(TokenType.COMMENT))
@@ -264,6 +270,7 @@ public class SimpleExample
                         case "*" -> "double-mul";
                         case "/" -> "double-div";
                         case "==" -> "double-equal";
+                        case "<" -> "double-less";
                         default -> throw new RuntimeException("Unknown " + this.op + "!");
                     };
             env.add(new Instruction(operation, args(l, r), next, null));
@@ -343,7 +350,7 @@ public class SimpleExample
             int dest = this.source.generate(env);
             int key = this.index.generate(env);
             int next = env.current().counter.next();
-            env.add(new Instruction("fn-call", args(dest, key, value), -1, "List$set"));
+            env.add(new Instruction("obj-invoke", args(dest, key, value), -1, "set"));
             return next;
         }
 
@@ -353,7 +360,7 @@ public class SimpleExample
             int generate = this.source.generate(env);
             int key = this.index.generate(env);
             int next = env.current().counter.next();
-            env.add(new Instruction("fn-call", args(generate, key), next, "List$get"));
+            env.add(new Instruction("obj-invoke", args(generate, key), next, "get"));
             return next;
         }
     }
@@ -414,6 +421,26 @@ public class SimpleExample
         {
             int result = this.segment.generate(env);
             env.add(new Instruction("fn-ret-val", args(result), -1, null));
+        }
+    }
+
+    public record For(Declaration declaration, Segment condition, Segment inc, Element body) implements Element
+    {
+        @Override
+        public void generate(Environment env)
+        {
+            this.declaration.generate(env);
+            String cond = "lab" + env.current().labels().next();
+            String end = "lab" + env.current().labels().next();
+            int neg = env.current().counter().next();
+            env.add(new Instruction("jump-label", -1, cond));
+            int con = this.condition.generate(env);
+            env.add(new Instruction("bool-not", args(con), neg, null));
+            env.add(new Instruction("jump-if", args(neg), -1, end));
+            this.body.generate(env);
+            this.inc.generate(env);
+            env.add(new Instruction("jump-to", -1, cond));
+            env.add(new Instruction("jump-label", -1, end));
         }
     }
 
@@ -570,10 +597,23 @@ public class SimpleExample
                 .create("element", Token.class, Element.class)
                 .when("fn", builder.parser("func"))
                 .when("if", builder.parser("if"))
+                .when("for", builder.parser("for"))
                 .when("ret", builder.parser("ret"))
                 .when("var", builder.parser("var"))
                 .when("{", builder.parser("block"))
                 .when(t -> !t.isType(TokenType.KEYWORD), builder.parser("expr"))
+                .build()
+        );
+
+        builder.add(SimpleParserFactoryBuilder.create("for", Token.class, For.class)
+                .check("for")
+                .check("(")
+                .parse(builder.parser("var"))
+                .parse(p -> sb.parser("segment").create(p))
+                .check(";")
+                .parse(p -> sb.parser("segment").create(p))
+                .check(")")
+                .parse(builder.parser("element"))
                 .build()
         );
 
