@@ -8,7 +8,7 @@ public class DoubleCast extends NumberCast<Double>
     public DoubleCast()
     {
         super(
-                "long",
+                "double",
                 Double.class,
                 List.of(
                         new Converter<>("int", l -> (int) (double) l),
