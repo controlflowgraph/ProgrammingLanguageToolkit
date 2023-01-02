@@ -8,7 +8,7 @@ public class IntCast extends NumberCast<Integer>
     public IntCast()
     {
         super(
-                "long",
+                "int",
                 Integer.class,
                 List.of(
                         new Converter<>("long", l -> (long) l),
