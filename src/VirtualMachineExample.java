@@ -16,7 +16,15 @@ public class VirtualMachineExample
                 .add(new Jump())
                 .add(new Debug())
                 .add(new Coroutine())
+                .add(new Obj())
                 .build();
+
+        Obj.Descriptor descriptor = new Obj.Descriptor(
+                "Test",
+                List.of(
+                        "t"
+                )
+        );
 
         Program program = new Program(List.of(
                 new Func(
@@ -36,6 +44,13 @@ public class VirtualMachineExample
                                 new Instruction("debug-print", new int[]{6}, -1, null),
                                 new Instruction("co-invoke", new int[]{5}, 6, null),
                                 new Instruction("debug-print", new int[]{6}, -1, null),
+
+
+                                new Instruction("obj-create", 7, descriptor),
+                                new Instruction("long-val", 8, 123L),
+                                new Instruction("fn-call", new int[]{7, 8}, 7, "Test-init"),
+                                new Instruction("obj-get", new int[]{7}, 8, "t"),
+                                new Instruction("debug-print", new int[]{8}, -1, null),
 
                                 new Instruction("fn-ret", -1, null)
                         )
@@ -70,6 +85,13 @@ public class VirtualMachineExample
                                 new Instruction("long-add", new int[]{0, 1}, 0, null),
                                 new Instruction("jump-to", -1, "loop"),
                                 new Instruction("co-crash",-1, null)
+                        )
+                ),
+                new Func(
+                        "Test-init",
+                        List.of(
+                                new Instruction("obj-set", new int[]{0, 1}, 1, "t"),
+                                new Instruction("fn-ret-val", new int[]{0}, -1, null)
                         )
                 )
         ), new Meta());
