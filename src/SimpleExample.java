@@ -19,6 +19,7 @@ import plt.vm.extensions.calc.BoolCalc;
 import plt.vm.extensions.calc.DoubleCalc;
 import plt.vm.extensions.calc.IntCalc;
 import plt.vm.extensions.cast.DoubleCast;
+import plt.vm.extensions.cast.IntCast;
 import plt.vm.model.Instruction;
 import plt.vm.model.Meta;
 import plt.vm.model.Program;
@@ -75,6 +76,25 @@ public class SimpleExample
                     }
                     ret v * fac(v - 1);
                 }
+                                
+                fn LstAdd(l, e)
+                {
+                    if(l.size == double(l.elements.length))
+                    {
+                        var a = Array(l.size * 2.0);
+                        for(var i = 0.0; i < l.size; i = i + 1.0)
+                        {
+                            a[i] = l.elements[i];
+                        }
+                        l.elements = a;
+                    }
+                    l.elements[l.size] = e;
+                    l.size = l.size + 1.0;
+                }
+                
+                var l = [1, 2, 3, 4];
+                LstAdd(l, 1234);
+                print(l.elements.elements);
                                 
                 print((1, 2, 3)._0);
                                 
@@ -397,7 +417,7 @@ public class SimpleExample
 
             int s = env.current().counter().next();
 
-            env.add(new Instruction("int-val", args(), s, this.segments.size()));
+            env.add(new Instruction("double-val", args(), s, (double) this.segments.size()));
             env.add(new Instruction("obj-set", args(lst, s), -1, "size"));
             env.add(new Instruction("obj-set", args(lst, arr), -1, "elements"));
 
@@ -451,7 +471,7 @@ public class SimpleExample
         {
             int define = env.current().define(this.name);
             int result = this.value.generate(env);
-            env.add(new Instruction("copy-val", args(result), define, ""));
+            env.add(new Instruction("copy-val", args(result), define, null));
         }
     }
 
@@ -468,7 +488,7 @@ public class SimpleExample
             env.add(new Instruction("bool-not", args(check), neg, null));
             env.add(new Instruction("jump-if", args(neg), -1, otherwise));
             this.body.generate(env);
-            env.add(new Instruction("jump", args(), -1, after));
+            env.add(new Instruction("jump-to", args(), -1, after));
             env.add(new Instruction("jump-label", args(), -1, otherwise));
             if (this.successor != null)
             {
@@ -770,6 +790,7 @@ public class SimpleExample
                 .add(new Obj())
                 .add(new Arr())
                 .add(new DoubleCast())
+                .add(new IntCast())
                 .add(new Copy())
                 .add(new Debug())
                 .add(new BoolCalc())
@@ -790,52 +811,64 @@ public class SimpleExample
                 )
         ));
 
-        // list 0, object 1
         v.add(new plt.vm.model.Func(
                 "List$add",
                 List.of(
-                        // check if the size
-                        new Instruction("obj-get", args(0), 2, "size"),
-                        new Instruction("obj-get", args(0), 3, "elements"),
-                        new Instruction("obj-get", args(3), 4, "length"),
-                        new Instruction("int-equal", args(2, 4), 5, null),
-                        new Instruction("bool-not", args(5), 6, null),
-                        // jump if no resize is required
-                        new Instruction("jump-if", args(6), -1, "end"),
-                        // calc size
-                        new Instruction("int-val", args(), 7, 2),
-                        new Instruction("int-mul", args(2, 7), 8, null),
-                        // create new array
-                        new Instruction("arr-create", args(8), 9, null),
-                        // copy the data
-                        new Instruction("int-val", 10, 0),
-                        new Instruction("jump-label", args(), -1, "condition"),
-                        new Instruction("int-equal", args(2, 10), 11, null),
-                        new Instruction("jump-if", args(11), -1, "stop"),
-
-                        // copy current element
-                        new Instruction("arr-get", args(3, 10), 12, null),
-                        new Instruction("arr-set", args(9, 10, 12), -1, null),
-
-                        new Instruction("int-val", args(), 13, 1),
-                        new Instruction("int-add", args(10, 13), 10, null),
-
-                        new Instruction("jump-to", -1, "condition"),
-                        new Instruction("jump-label", args(), -1, "stop"),
-                        // set the new array
-                        new Instruction("obj-set", args(0, 9), -1, "elements"),
-
-                        new Instruction("jump-label", args(), -1, "end"),
-                        // add the element
-                        new Instruction("obj-get", args(0), 14, "elements"),
-                        new Instruction("arr-set", args(14, 2, 1), -1, null),
-                        // increment size
-                        new Instruction("obj-get", args(0), 15, "size"),
-                        new Instruction("int-val", args(), 16, 1),
-                        new Instruction("int-add", args(15, 16), 17, null),
-                        new Instruction("obj-set", args(0, 17), -1, "size"),
-
-                        // return
+                        new Instruction("copy-val", args(0), 3, null),
+                        new Instruction("obj-get", args(3), 2, "size"),
+                        new Instruction("copy-val", args(0), 6, null),
+                        new Instruction("obj-get", args(6), 5, "elements"),
+                        new Instruction("obj-get", args(5), 4, "length"),
+                        new Instruction("fn-call", args(4), 7, "double"),
+                        new Instruction("double-equal", args(2, 7), 8, null),
+                        new Instruction("bool-not", args(8), 9, null),
+                        new Instruction("jump-if", args(9), -1, "lab0"),
+                        new Instruction("copy-val", args(0), 12, null),
+                        new Instruction("obj-get", args(12), 11, "size"),
+                        new Instruction("double-val", args(), 13, 2.0),
+                        new Instruction("double-mul", args(11, 13), 14, null),
+                        new Instruction("fn-call", args(14), 15, "Array"),
+                        new Instruction("copy-val", args(15), 10, null),
+                        new Instruction("double-val", args(), 17, 0.0),
+                        new Instruction("copy-val", args(17), 16, null),
+                        new Instruction("jump-label", args(), -1, "lab2"),
+                        new Instruction("copy-val", args(16), 19, null),
+                        new Instruction("copy-val", args(0), 21, null),
+                        new Instruction("obj-get", args(21), 20, "size"),
+                        new Instruction("double-less", args(19, 20), 22, null),
+                        new Instruction("bool-not", args(22), 18, null),
+                        new Instruction("jump-if", args(18), -1, "lab3"),
+                        new Instruction("copy-val", args(0), 24, null),
+                        new Instruction("obj-get", args(24), 23, "elements"),
+                        new Instruction("copy-val", args(16), 25, null),
+                        new Instruction("obj-invoke", args(23, 25), 26, "get"),
+                        new Instruction("copy-val", args(10), 27, null),
+                        new Instruction("copy-val", args(16), 28, null),
+                        new Instruction("obj-invoke", args(27, 28, 26), -1, "set"),
+                        new Instruction("copy-val", args(16), 30, null),
+                        new Instruction("double-val", args(), 31, 1.0),
+                        new Instruction("double-add", args(30, 31), 32, null),
+                        new Instruction("copy-val", args(32), 16, null),
+                        new Instruction("jump-to", args(), -1, "lab2"),
+                        new Instruction("jump-label", args(), -1, "lab3"),
+                        new Instruction("copy-val", args(10), 33, null),
+                        new Instruction("copy-val", args(0), 35, null),
+                        new Instruction("obj-set", args(35, 33), 34, "elements"),
+                        new Instruction("jump-to", args(), -1, "lab1"),
+                        new Instruction("jump-label", args(), -1, "lab0"),
+                        new Instruction("jump-label", args(), -1, "lab1"),
+                        new Instruction("copy-val", args(1), 36, null),
+                        new Instruction("copy-val", args(0), 38, null),
+                        new Instruction("obj-get", args(38), 37, "elements"),
+                        new Instruction("copy-val", args(0), 40, null),
+                        new Instruction("obj-get", args(40), 39, "size"),
+                        new Instruction("obj-invoke", args(37, 39, 36), -1, "set"),
+                        new Instruction("copy-val", args(0), 43, null),
+                        new Instruction("obj-get", args(43), 42, "size"),
+                        new Instruction("double-val", args(), 44, 1.0),
+                        new Instruction("double-add", args(42, 44), 45, null),
+                        new Instruction("copy-val", args(0), 47, null),
+                        new Instruction("obj-set", args(47, 45), 46, "size"),
                         new Instruction("fn-ret", args(), -1, null)
                 )
         ));
@@ -860,6 +893,41 @@ public class SimpleExample
                 )
         ));
 
+        v.add(new plt.vm.model.Func(
+                "Array",
+                List.of(
+                        new Instruction("cast-double-to-int", args(0), 1, null),
+                        new Instruction("debug-print", args(1), -1, null),
+                        new Instruction("arr-create", args(1), 2, null),
+                        new Instruction("fn-ret-val", args(2), -1, null)
+                )
+        ));
+
+        v.add(new plt.vm.model.Func(
+                "Array$get",
+                List.of(
+                        new Instruction("cast-double-to-int", args(1), 2, null),
+                        new Instruction("arr-get", args(0, 2), 3, null),
+                        new Instruction("fn-ret-val", args(3), -1, null)
+                )
+        ));
+
+        v.add(new plt.vm.model.Func(
+                "Array$set",
+                List.of(
+                        new Instruction("cast-double-to-int", args(1), 3, null),
+                        new Instruction("arr-set", args(0, 3, 2), -1, null),
+                        new Instruction("fn-ret", args(), -1, null)
+                )
+        ));
+
+        v.add(new plt.vm.model.Func(
+                "double",
+                List.of(
+                        new Instruction("cast-int-to-double", args(0), 1, null),
+                        new Instruction("fn-ret-val", args(1), -1, null)
+                )
+        ));
 
         Program program = new Program(v, new Meta());
         vm.run(program);
