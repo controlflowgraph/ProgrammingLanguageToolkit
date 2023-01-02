@@ -9,5 +9,6 @@ public class BoolCalc extends Calc<Boolean>
         function("or", (c, v) -> calc(c, v, (a, b) -> a || b));
         function("xor", (c, v) -> calc(c, v, (a, b) -> a ^ b));
         function("not", (c, v) -> c.set(v.output(), !c.get(v.inputs()[0], Boolean.class)));
+        function("val", (c, v) -> c.set(v.output(), v.data()));
     }
 }
