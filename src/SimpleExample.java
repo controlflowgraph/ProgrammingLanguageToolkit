@@ -897,7 +897,6 @@ public class SimpleExample
                 "Array",
                 List.of(
                         new Instruction("cast-double-to-int", args(0), 1, null),
-                        new Instruction("debug-print", args(1), -1, null),
                         new Instruction("arr-create", args(1), 2, null),
                         new Instruction("fn-ret-val", args(2), -1, null)
                 )
