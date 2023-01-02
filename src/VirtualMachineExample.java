@@ -3,6 +3,7 @@ import plt.vm.VirtualMachineBuilder;
 import plt.vm.extensions.*;
 import plt.vm.extensions.calc.DoubleCalc;
 import plt.vm.extensions.calc.LongCalc;
+import plt.vm.extensions.cast.LongCast;
 import plt.vm.model.*;
 
 import java.util.List;
